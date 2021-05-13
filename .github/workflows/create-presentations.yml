@@ -1,0 +1,62 @@
+name: Create Presentations From Markdown
+
+on:
+  release:
+    types: [released]
+
+env:
+  slides-path: "${{ github.workspace }}/slides/"
+
+jobs:
+  make-and-deploy-pages-site:
+    name: Deploy MD to pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout the repository
+        uses: actions/checkout@v2
+
+      - name: download and install pandoc
+        run: |
+          curl -OL https://github.com/jgm/pandoc/releases/download/2.13/pandoc-2.13-1-amd64.deb
+          sudo dpkg -i ./pandoc-2.13-1-amd64.deb
+      - name: use pandoc
+        working-directory: ${{ env.slides-path }}
+        # TODO set working directory per step to make the slides.txt file easier to manage
+        run: pandoc -s -i $(cat slides.txt) -t revealjs -o ${{ github.workspace }}/docs/index.html
+
+      - name: configure git
+        run: |
+          git config --local user.email ${{ github.actor }}@github.com
+          git config --local user.name ${{ github.actor }}
+      - name: push changes to the gh-pages branch
+        run: |
+          git fetch
+          git add ${{ github.workspace }}/docs/index.html
+          git commit -m "Actions used Pandoc to build slides from markdown"
+          git push origin HEAD:gh-pages --force
+  make-pttx-and-attach-to-release:
+    name: Add PowerPoint files to release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout the repository
+        uses: actions/checkout@v2
+
+      - name: download and install pandoc
+        run: |
+          curl -OL https://github.com/jgm/pandoc/releases/download/2.13/pandoc-2.13-1-amd64.deb
+          sudo dpkg -i ./pandoc-2.13-1-amd64.deb
+      - name: use pandoc
+        working-directory: ${{ env.slides-path }}
+        run: pandoc -i $(cat slides.txt) -o ${{ env.slides-path }}/release.pptx
+
+      - name: add pptx to release
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: ${{ env.slides-path }}/release.pptx
+          tags: true
+          update_latest_release: true
+          verbose: true
+          draft: false
