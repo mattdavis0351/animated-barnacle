@@ -1,3 +1,5 @@
 _metadata.md
-two-columns.md
 welcome.md
+two-columns.md
+2slides-1file.md
+slide-with-notes.md
